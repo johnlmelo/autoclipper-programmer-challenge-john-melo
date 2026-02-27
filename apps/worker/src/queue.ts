@@ -16,4 +16,4 @@ export const worker = new Worker(
     connection,
     concurrency: 2
   }
-)r
+)
