@@ -2,11 +2,15 @@ FROM node:20
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-COPY . .
+COPY tsconfig.json ./
+COPY src ./src
 
+RUN npm run build
+
+ENV NODE_ENV=production
 EXPOSE 4000
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "start"]
