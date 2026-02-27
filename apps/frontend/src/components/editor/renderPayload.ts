@@ -25,6 +25,7 @@ type RenderTextElement = {
 type RenderImageElement = {
   type: "image";
   assetId: string;
+  sourceUrl: string;
   label: string;
   startInSeconds: number;
   endInSeconds: number;
@@ -42,6 +43,7 @@ type RenderImageElement = {
 type RenderAudioElement = {
   type: "audio";
   assetId: string;
+  sourceUrl: string;
   label: string;
   startInSeconds: number;
   endInSeconds: number;
@@ -160,6 +162,7 @@ export function buildRenderRequest({
           return {
             type: "image",
             assetId: asset.id,
+            sourceUrl: asset.sourceUrl ?? "",
             label: clip.label,
             startInSeconds,
             endInSeconds,
@@ -180,6 +183,7 @@ export function buildRenderRequest({
           return {
             type: "audio",
             assetId: asset.id,
+            sourceUrl: asset.sourceUrl ?? "",
             label: clip.label,
             startInSeconds,
             endInSeconds,

@@ -4,7 +4,8 @@ import { initBundle } from "./render.js"
 
 async function bootstrap() {
   await initBundle()
-  console.log("Worker ready 🚀")
+  await worker.waitUntilReady()
+  console.log("Worker ready")
 }
 
 bootstrap()

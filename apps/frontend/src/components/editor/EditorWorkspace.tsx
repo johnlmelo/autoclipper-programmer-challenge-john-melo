@@ -14,7 +14,7 @@ import {
   loadPersistedProject,
   savePersistedProject,
 } from "./persistence";
-import { createRender } from "./renderApi";
+import { createRender, uploadAssetFile } from "./renderApi";
 import { buildRenderRequest, type RenderProfile } from "./renderPayload";
 import type {
   AudioAdjustments,
@@ -80,6 +80,14 @@ function buildTimelineMarkers(duration: number) {
     markers.push(`${second}s`);
   }
   return markers;
+}
+
+function isRemoteHttpUrl(value?: string): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return value.startsWith("http://") || value.startsWith("https://");
 }
 
 function scaleTracks(tracks: TimelineTrack[], factor: number) {
@@ -267,6 +275,7 @@ export function EditorWorkspace({
   const audioRef = useRef<HTMLAudioElement>(null);
   const activeAudioSrcRef = useRef<string | null>(null);
   const assetBlobsRef = useRef<Map<string, Blob>>(new Map());
+  const uploadedAssetUrlsRef = useRef<Map<string, string>>(new Map());
   const [persistenceReady, setPersistenceReady] = useState(false);
   const objectUrlsFromPersistenceRef = useRef<string[]>([]);
   const totalDuration = timelineDuration;
@@ -626,13 +635,70 @@ export function EditorWorkspace({
       setIsSubmittingRender(true);
       setRenderError(null);
 
+      const usedAssetIds = new Set<string>();
+      for (const track of timelineState) {
+        if (track.id !== "track-image" && track.id !== "track-audio") {
+          continue;
+        }
+
+        for (const clip of track.clips) {
+          if (clip.sourceAssetId) {
+            usedAssetIds.add(clip.sourceAssetId);
+          }
+        }
+      }
+
+      const remoteSourceUrlByAssetId = new Map<string, string>();
+      for (const asset of uploadedAssets) {
+        if (!usedAssetIds.has(asset.id)) {
+          continue;
+        }
+
+        const cachedSourceUrl = uploadedAssetUrlsRef.current.get(asset.id);
+        if (cachedSourceUrl) {
+          remoteSourceUrlByAssetId.set(asset.id, cachedSourceUrl);
+          continue;
+        }
+
+        if (isRemoteHttpUrl(asset.sourceUrl)) {
+          remoteSourceUrlByAssetId.set(asset.id, asset.sourceUrl!);
+          uploadedAssetUrlsRef.current.set(asset.id, asset.sourceUrl!);
+          continue;
+        }
+
+        const blob = assetBlobsRef.current.get(asset.id);
+        if (!blob) {
+          throw new Error(`Arquivo do asset "${asset.label}" nao encontrado para upload.`);
+        }
+
+        const uploaded = await uploadAssetFile({
+          fileName: asset.label,
+          contentType: asset.mimeType || blob.type || "application/octet-stream",
+          blob,
+        });
+        remoteSourceUrlByAssetId.set(asset.id, uploaded.sourceUrl);
+        uploadedAssetUrlsRef.current.set(asset.id, uploaded.sourceUrl);
+      }
+
+      const assetsForRender = uploadedAssets.map((asset) => {
+        const remoteSourceUrl = remoteSourceUrlByAssetId.get(asset.id);
+        if (!remoteSourceUrl) {
+          return asset;
+        }
+
+        return {
+          ...asset,
+          sourceUrl: remoteSourceUrl,
+        };
+      });
+
       const payload = buildRenderRequest({
         projectId,
         projectName,
         profile,
         timelineDuration,
         timelineState,
-        assets: uploadedAssets,
+        assets: assetsForRender,
       });
       const result = await createRender(payload);
       setRenderModalOpen(false);
