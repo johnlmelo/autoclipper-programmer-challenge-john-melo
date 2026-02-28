@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../lib/db.js";
 import { renderQueue } from "../lib/queue.js";
+import { getSignedObjectUrl } from "../lib/s3.js";
 import { RENDER_STATUS, type CreateRenderResult, type GetRenderResult, type RenderRecord } from "../types/render.types.js";
 
 export class AppError extends Error {
@@ -89,12 +90,13 @@ export const findRenderById = async (id: string): Promise<GetRenderResult> => {
   }
 
   const render = mapRenderRow(result.rows[0]);
+  const outputUrl = render.outputUrl ? await getSignedObjectUrl(render.outputUrl) : null;
 
   return {
     id: render.id,
     status: render.status,
     createdAt: render.createdAt,
     completedAt: render.completedAt,
-    outputUrl: render.outputUrl
+    outputUrl
   };
 };

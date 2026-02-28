@@ -4,7 +4,7 @@ import { existsSync } from "fs"
 import { mkdir } from "fs/promises"
 import path from "path"
 import { db } from "./db.js"
-import { toSignedMinioUrl } from "./storage.js"
+import { toSignedMinioUrl, uploadFile } from "./storage.js"
 
 const OUTPUT_DIRECTORY = "/tmp/renders"
 const REMOTION_COMPOSITION_ID = "RenderComposition"
@@ -119,7 +119,8 @@ export async function processRender(renderId: string) {
       })
     })(), RENDER_TIMEOUT_MS)
 
-    const publicOutputUrl = `/renders/${renderId}.mp4`
+    const outputObjectKey = `renders/${renderId}.mp4`
+    const publicOutputUrl = await uploadFile(outputObjectKey, outputPath)
 
     await db.query(
       "UPDATE renders SET status = 'completed', completed_at = NOW(), output_url = $1, error = NULL WHERE id = $2",
